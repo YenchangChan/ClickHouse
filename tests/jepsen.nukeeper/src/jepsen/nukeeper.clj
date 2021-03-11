@@ -20,7 +20,7 @@
             [zookeeper :as zk])
   (:import (org.apache.zookeeper ZooKeeper KeeperException KeeperException$BadVersionException)))
 
-(def dir     "/var/lib/clickhouse")
+(def dir "/var/lib/clickhouse")
 (def binary "clickhouse")
 (def logdir "/var/log/clickhouse-server")
 (def logfile "/var/log/clickhouse-server/stderr.log")
@@ -113,21 +113,26 @@
 (defrecord Client [conn]
   client/Client
   (open! [this test node]
-    (assoc this :conn (zk/connect (client-url node) :timeout-msec 30000)))
+    (assoc this :conn (zk/connect (client-url node) :timeout-msec 5000)))
 
   (setup! [this test])
 
   (invoke! [_ test op]
       (case (:f op)
-        :read (assoc op :type :ok, :value (parse-zk-long (:data (zk/data conn "/"))))
-        :write (do (zk/set-data conn "/" (data/to-bytes (str (:value op))) -1)
-                   (assoc op :type :ok))
+        :read (try
+                (assoc op :type :ok, :value (parse-zk-long (:data (zk/data conn "/"))))
+                (catch Exception _ (assoc op :type :fail, :error :connect-error)))
+        :write (try
+                 (do (zk/set-data conn "/" (data/to-bytes (str (:value op))) -1)
+                     (assoc op :type :ok))
+                 (catch Exception _ (assoc op :type :info, :error :connect-error)))
         :cas (try
               (let [[old new] (:value op)]
                 (assoc op :type (if (zk-cas conn "/" old new)
                                   :ok
                                   :fail)))
-              (catch KeeperException$BadVersionException _ (assoc op :type :fail, :error :bad-version)))))
+              (catch KeeperException$BadVersionException _ (assoc op :type :fail, :error :bad-version))
+              (catch Exception _ (assoc op :type :fail, :error :connect-error)))))
 
   (teardown! [this test])
 
@@ -142,7 +147,7 @@
          opts
          {:name "clickhouse"
           :os ubuntu/os
-          :db (db "rbtorrent:c19fae30a6793344bf30d20521934be3774cfee7")
+          :db (db "rbtorrent:74e29f16aa7b46a39029493d2d7d255e95126705")
           :pure-generators true
           :client (Client. nil)
           :nemesis (nemesis/partition-random-halves)
@@ -153,11 +158,11 @@
                      :timeline (timeline/html)})
           :generator (->> (gen/mix [r w cas])
                           (gen/stagger 1/50)
-                          (gen/nemesis (cycle [(gen/sleep 5)
+                          (gen/nemesis (cycle [(gen/sleep 3)
                               {:type :info, :f :start}
-                              (gen/sleep 5)
+                              (gen/sleep 3)
                               {:type :info, :f :stop}]))
-                          (gen/time-limit 15))
+                          (gen/time-limit 60))
           }))
 
 

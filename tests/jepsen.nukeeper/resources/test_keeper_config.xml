@@ -9,6 +9,7 @@
             <force_sync>false</force_sync>
             <startup_timeout>60000</startup_timeout>
             <raft_logs_level>trace</raft_logs_level>
+            <quorum_reads>true</quorum_reads>
         </coordination_settings>
 
         <raft_configuration>
