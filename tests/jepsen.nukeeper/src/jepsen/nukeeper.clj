@@ -1,5 +1,6 @@
 (ns jepsen.nukeeper
   (:require [clojure.tools.logging :refer :all]
+            [jepsen.nukeeperutils :refer :all]
             [clojure.string :as str]
             [jepsen
              [checker :as checker]
@@ -17,7 +18,6 @@
             [clojure.java.io :as io]
             [knossos.model :as model]
             [zookeeper.data :as data]
-            [slingshot.slingshot :refer [try+]]
             [zookeeper :as zk])
   (:import (org.apache.zookeeper ZooKeeper KeeperException KeeperException$BadVersionException)))
 
@@ -82,35 +82,6 @@
 (defn r   [_ _] {:type :invoke, :f :read, :value nil})
 (defn w   [_ _] {:type :invoke, :f :write, :value (rand-int 5)})
 (defn cas [_ _] {:type :invoke, :f :cas, :value [(rand-int 5) (rand-int 5)]})
-
-(defn client-url
-  [node]
-  (str node ":9181"))
-
-(defn parse-long
-  "Parses a string to a Long. Passes through `nil` and empty strings."
-  [s]
-  (if (and s (> (count s) 0))
-    (Long/parseLong s)))
-
-(defn parse-zk-long
-  [val]
-  (parse-long (data/to-string val)))
-
-(defn zk-cas
-  [zk path old-value new-value]
-  (let [current-value (zk/data zk path)]
-    (if (= (parse-zk-long (:data current-value)) old-value)
-      (do (zk/set-data zk path (data/to-bytes (str new-value)) (:version (:stat current-value)))
-          true))))
-
-(defn zk-range
-  []
-  (map (fn [v] (str "/" v)) (range)))
-
-(defn zk-path
-  [n]
-  (str "/" n))
 
 (defrecord Client [conn]
   client/Client
