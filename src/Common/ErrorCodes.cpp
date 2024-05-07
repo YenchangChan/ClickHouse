@@ -11,6 +11,9 @@
   * Later it was converted to the lookup table, to provide:
   * - errorCodeToName()
   * - system.errors table
+  * 
+  * If you want to add a new error code, please update the documentation synchronously!
+  * [docs/en/operations/system-tables/errors.md]
   */
 
 #define APPLY_FOR_BUILTIN_ERROR_CODES(M) \
