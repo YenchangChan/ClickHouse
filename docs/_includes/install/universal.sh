@@ -28,7 +28,11 @@ then
         # Dispatch between standard and compatibility builds, see cmake/cpu_features.cmake for details. Unfortunately, (1) the ARM ISA level
         # cannot be read directly, we need to guess from the "features" in /proc/cpuinfo, and (2) the flags in /proc/cpuinfo are named
         # differently than the flags passed to the compiler in cpu_features.cmake.
-        HAS_ARMV82=$(grep -m 1 'Features' /proc/cpuinfo | awk '/asimd/ && /sha1/ && /aes/ && /atomics/ && /lrcpc/')
+        # 'asimddp' (compiler flag "dotprod") is checked because the compiler auto-vectorizes ordinary code into SDOT/UDOT - these appear
+        # throughout the standard build, not only in hand-written kernels. The remaining two flags of the standard build are deliberately
+        # not checked: BF16 instructions occur only in SimSIMD kernels, which are picked at run time via 'simsimd_capabilities', so a CPU
+        # without BF16 never executes them, and 'ssbs' only controls a system register bit rather than adding instructions.
+        HAS_ARMV82=$(grep -m 1 'Features' /proc/cpuinfo | awk '/asimd/ && /sha1/ && /aes/ && /atomics/ && /lrcpc/ && /asimddp/')
         if [ "${HAS_ARMV82}" ]
         then
             DIR="aarch64"
